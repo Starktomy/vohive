@@ -2,8 +2,19 @@ import { api } from '../stores/auth'
 import { callService } from './http'
 
 export type TrafficRange = 'day' | 'week' | 'month'
-export type TrafficBucket = { bucket: string; rx_bytes: number; tx_bytes: number; total_bytes: number }
-export type TrafficChart = { timestamps: string[]; devices: string[]; series: Record<string, number[]> }
+export type TrafficBucket = {
+  bucket: string
+  period_start?: string
+  rx_bytes: number
+  tx_bytes: number
+  total_bytes: number
+}
+export type TrafficChart = {
+  timestamps: string[]
+  period_starts?: string[]
+  devices: string[]
+  series: Record<string, number[]>
+}
 export type TrafficAnalysis = { buckets: TrafficBucket[]; chart: TrafficChart | null }
 
 export function createEmptyTrafficAnalysis(): TrafficAnalysis {

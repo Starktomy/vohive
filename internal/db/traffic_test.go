@@ -216,6 +216,43 @@ func TestGetTrafficAnalysisWithChartUsesSingleDataScanPerRollup(t *testing.T) {
 	}
 }
 
+func TestGetTrafficAnalysisDayKeepsRepeatedHourLabelsSeparate(t *testing.T) {
+	now := initTrafficTestDB(t)
+
+	previousDaySameHour := now.Add(-24 * time.Hour).Truncate(time.Hour)
+	currentHour := now.Truncate(time.Hour)
+	mustInsertTrafficHour(t, now, previousDaySameHour, "dev-a@wwan0", false, 100)
+	mustInsertTrafficMinute(t, now, currentHour.Add(5*time.Minute), "dev-a@wwan0", false, 11)
+
+	_, chart, err := GetTrafficAnalysisWithChart("day", "dev-a", now)
+	if err != nil {
+		t.Fatalf("GetTrafficAnalysisWithChart() error = %v", err)
+	}
+	if chart == nil {
+		t.Fatal("expected chart data")
+	}
+	firstIdx := timestampIndex(chart.Timestamps, "15:00")
+	lastIdx := lastTimestampIndex(chart.Timestamps, "15:00")
+	if firstIdx < 0 || lastIdx < 0 || firstIdx == lastIdx {
+		t.Fatalf("expected two separate 15:00 slots, timestamps=%v", chart.Timestamps)
+	}
+	if len(chart.PeriodStarts) != len(chart.Timestamps) {
+		t.Fatalf("period_starts length=%d timestamps length=%d", len(chart.PeriodStarts), len(chart.Timestamps))
+	}
+	if !chart.PeriodStarts[firstIdx].Equal(previousDaySameHour) {
+		t.Fatalf("first 15:00 period_start=%s want %s", chart.PeriodStarts[firstIdx], previousDaySameHour)
+	}
+	if !chart.PeriodStarts[lastIdx].Equal(currentHour) {
+		t.Fatalf("last 15:00 period_start=%s want %s", chart.PeriodStarts[lastIdx], currentHour)
+	}
+	if got := chart.Series["dev-a"][firstIdx]; got != 100 {
+		t.Fatalf("previous-day 15:00 series=%d want 100", got)
+	}
+	if got := chart.Series["dev-a"][lastIdx]; got != 11 {
+		t.Fatalf("current-day 15:00 series=%d want 11", got)
+	}
+}
+
 type trafficSelectCounter struct {
 	count atomic.Int64
 }

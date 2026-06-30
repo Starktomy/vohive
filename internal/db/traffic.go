@@ -10,10 +10,11 @@ import (
 )
 
 type TrafficBucket struct {
-	Bucket     string `json:"bucket"`
-	RxBytes    int64  `json:"rx_bytes"`
-	TxBytes    int64  `json:"tx_bytes"`
-	TotalBytes int64  `json:"total_bytes"`
+	Bucket      string    `json:"bucket"`
+	PeriodStart time.Time `json:"period_start"`
+	RxBytes     int64     `json:"rx_bytes"`
+	TxBytes     int64     `json:"tx_bytes"`
+	TotalBytes  int64     `json:"total_bytes"`
 }
 
 func GetTrafficAnalysis(rangeName string, deviceID string, now time.Time) ([]TrafficBucket, error) {
@@ -25,9 +26,10 @@ func GetTrafficAnalysis(rangeName string, deviceID string, now time.Time) ([]Tra
 }
 
 type TrafficChartData struct {
-	Timestamps []string           `json:"timestamps"`
-	Devices    []string           `json:"devices"`
-	Series     map[string][]int64 `json:"series"` // device_id -> [bytes, bytes, ...]
+	Timestamps   []string           `json:"timestamps"`
+	PeriodStarts []time.Time        `json:"period_starts"`
+	Devices      []string           `json:"devices"`
+	Series       map[string][]int64 `json:"series"` // device_id -> [bytes, bytes, ...]
 }
 
 func GetTrafficChartData(rangeName string, deviceID string, now time.Time) (*TrafficChartData, error) {
@@ -49,17 +51,22 @@ func GetTrafficAnalysisWithChart(rangeName string, deviceID string, now time.Tim
 	}
 
 	timestamps := make([]string, 0)
-	tsMap := make(map[string]int)
-	bucketAgg := map[string]*TrafficBucket{}
-	bucketOrder := make([]string, 0)
+	periodStarts := make([]time.Time, 0)
+	tsMap := make(map[int64]int)
+	bucketAgg := map[int64]*TrafficBucket{}
+	bucketOrder := make([]int64, 0)
 	cursor := spec.since
 	for !cursor.After(now) {
-		bucketKey := spec.bucketKey(cursor)
-		bucketAgg[bucketKey] = &TrafficBucket{Bucket: bucketKey}
-		bucketOrder = append(bucketOrder, bucketKey)
-		chartKey := spec.chartKey(cursor)
-		tsMap[chartKey] = len(timestamps)
-		timestamps = append(timestamps, chartKey)
+		periodStart := spec.periodStart(cursor)
+		periodKey := trafficPeriodKey(periodStart)
+		bucketAgg[periodKey] = &TrafficBucket{
+			Bucket:      spec.bucketKey(periodStart),
+			PeriodStart: periodStart,
+		}
+		bucketOrder = append(bucketOrder, periodKey)
+		tsMap[periodKey] = len(periodStarts)
+		periodStarts = append(periodStarts, periodStart)
+		timestamps = append(timestamps, spec.chartKey(periodStart))
 		cursor = cursor.Add(spec.step)
 	}
 
@@ -75,8 +82,9 @@ func GetTrafficAnalysisWithChart(rangeName string, deviceID string, now time.Tim
 	deviceSet := map[string]struct{}{}
 	tempSeries := map[string]map[int]int64{}
 	applyRow := func(r trafficRollupRow) {
-		ps := r.PeriodStart.In(now.Location())
-		if b, ok := bucketAgg[spec.bucketKey(ps)]; ok {
+		ps := spec.periodStart(r.PeriodStart.In(now.Location()))
+		periodKey := trafficPeriodKey(ps)
+		if b, ok := bucketAgg[periodKey]; ok {
 			if r.Direction {
 				b.TxBytes += r.TrafficBytes
 			} else {
@@ -85,8 +93,7 @@ func GetTrafficAnalysisWithChart(rangeName string, deviceID string, now time.Tim
 			b.TotalBytes = b.RxBytes + b.TxBytes
 		}
 
-		chartKey := spec.chartKey(ps)
-		tIdx, ok := tsMap[chartKey]
+		tIdx, ok := tsMap[periodKey]
 		if !ok {
 			return
 		}
@@ -128,9 +135,10 @@ func GetTrafficAnalysisWithChart(rangeName string, deviceID string, now time.Tim
 	}
 
 	return buckets, &TrafficChartData{
-		Timestamps: timestamps,
-		Devices:    devices,
-		Series:     series,
+		Timestamps:   timestamps,
+		PeriodStarts: periodStarts,
+		Devices:      devices,
+		Series:       series,
 	}, nil
 }
 
@@ -138,6 +146,7 @@ type trafficRangeSpec struct {
 	since        time.Time
 	step         time.Duration
 	currentStart time.Time
+	periodStart  func(time.Time) time.Time
 	bucketKey    func(time.Time) string
 	chartKey     func(time.Time) string
 }
@@ -149,6 +158,9 @@ func newTrafficRangeSpec(rangeName string, now time.Time) (trafficRangeSpec, err
 			since:        now.Add(-24 * time.Hour).Truncate(time.Hour),
 			step:         time.Hour,
 			currentStart: now.Truncate(time.Hour),
+			periodStart: func(t time.Time) time.Time {
+				return t.Truncate(time.Hour)
+			},
 			bucketKey: func(t time.Time) string {
 				return t.Truncate(time.Hour).Format("2006-01-02 15:00")
 			},
@@ -162,6 +174,7 @@ func newTrafficRangeSpec(rangeName string, now time.Time) (trafficRangeSpec, err
 			since:        since,
 			step:         24 * time.Hour,
 			currentStart: startOfTrafficDay(now),
+			periodStart:  startOfTrafficDay,
 			bucketKey: func(t time.Time) string {
 				return startOfTrafficDay(t).Format("2006-01-02")
 			},
@@ -175,6 +188,7 @@ func newTrafficRangeSpec(rangeName string, now time.Time) (trafficRangeSpec, err
 			since:        since,
 			step:         24 * time.Hour,
 			currentStart: startOfTrafficDay(now),
+			periodStart:  startOfTrafficDay,
 			bucketKey: func(t time.Time) string {
 				return startOfTrafficDay(t).Format("2006-01-02")
 			},
@@ -189,6 +203,10 @@ func newTrafficRangeSpec(rangeName string, now time.Time) (trafficRangeSpec, err
 
 func startOfTrafficDay(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
+func trafficPeriodKey(t time.Time) int64 {
+	return t.UnixNano()
 }
 
 type trafficRollupRow struct {

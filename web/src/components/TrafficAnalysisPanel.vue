@@ -8,6 +8,7 @@ import type { TrafficAnalysis, TrafficRange } from '../services/traffic'
 type TrafficAnalysisMode = 'global' | 'device'
 type TooltipParam = {
   axisValue?: string | number
+  dataIndex?: number
   seriesName?: string
   value?: string | number
   color?: string
@@ -149,6 +150,49 @@ function formatBytes(bytes: unknown) {
   return `${val.toFixed(i === 0 ? 0 : 2)} ${units[i]}`
 }
 
+function parsePeriodStart(value: unknown): Date | null {
+  if (typeof value !== 'string' || !value.trim()) return null
+  const date = new Date(value)
+  return Number.isFinite(date.getTime()) ? date : null
+}
+
+function pad2(value: number) {
+  return String(value).padStart(2, '0')
+}
+
+function formatLocalDate(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+}
+
+function formatLocalHour(date: Date) {
+  return `${pad2(date.getHours())}:00`
+}
+
+function formatLocalDateHour(date: Date) {
+  return `${formatLocalDate(date)} ${formatLocalHour(date)}`
+}
+
+function formatTrafficAxisTime(periodStart: unknown, fallback: string) {
+  const date = parsePeriodStart(periodStart)
+  if (!date) return fallback
+  if (props.range === 'day') return formatLocalHour(date)
+  return `${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+}
+
+function formatTrafficTooltipTime(periodStart: unknown, fallback: string | number | undefined) {
+  const date = parsePeriodStart(periodStart)
+  if (!date) return fallback ?? ''
+  if (props.range === 'day') return formatLocalDateHour(date)
+  return formatLocalDate(date)
+}
+
+function formatTrafficBucketTime(bucket: { period_start?: string; bucket?: string }) {
+  const date = parsePeriodStart(bucket?.period_start)
+  if (!date) return bucket?.bucket || ''
+  if (props.range === 'day') return formatLocalDateHour(date)
+  return formatLocalDate(date)
+}
+
 const analysisTotal = computed(() => {
   const rx = analysisBuckets.value.reduce((sum, bucket) => sum + (Number(bucket.rx_bytes) || 0), 0)
   const tx = analysisBuckets.value.reduce((sum, bucket) => sum + (Number(bucket.tx_bytes) || 0), 0)
@@ -178,12 +222,19 @@ const chartSeriesSnapshot = computed(() => {
   const chart = analysisChartData.value
   if (!chart) return null
 
-  const totalBytesByTs = chart.timestamps.map((_, idx) =>
+  const timestamps = Array.isArray(chart.timestamps) ? chart.timestamps : []
+  const periodStarts = Array.isArray(chart.period_starts) ? chart.period_starts : []
+  const displayTimestamps = timestamps.map((label, idx) =>
+    formatTrafficAxisTime(periodStarts[idx], String(label || ''))
+  )
+
+  const totalBytesByTs = timestamps.map((_, idx) =>
     chart.devices.reduce((sum, dev) => sum + Number(chart.series[dev]?.[idx] || 0), 0)
   )
 
   return {
-    timestamps: chart.timestamps,
+    timestamps: displayTimestamps,
+    periodStarts,
     devices: chart.devices,
     series: chart.series,
     totalBytesByTs
@@ -230,9 +281,11 @@ const chartOption = computed(() => {
             ? params.filter((item): item is TooltipParam => !!item && typeof item === 'object')
             : []
           const axisLabel = list[0]?.axisValue ?? ''
+          const dataIndex = Number(list[0]?.dataIndex ?? -1)
+          const timeLabel = formatTrafficTooltipTime(snapshot.periodStarts[dataIndex], axisLabel)
           const point = list[0]
           const value = Number(point?.value) || 0
-          return `<div class="font-bold mb-1">${axisLabel}</div>
+          return `<div class="font-bold mb-1">${timeLabel}</div>
             <div class="flex justify-between gap-4 text-xs">
               <span>${deviceSeriesName.value}</span>
               <span class="font-mono">${value.toFixed(unit.decimals)} ${unit.label}</span>
@@ -314,6 +367,8 @@ const chartOption = computed(() => {
           ? params.filter((item): item is TooltipParam => !!item && typeof item === 'object')
           : []
         const axisLabel = list[0]?.axisValue ?? ''
+        const dataIndex = Number(list[0]?.dataIndex ?? -1)
+        const timeLabel = formatTrafficTooltipTime(snapshot.periodStarts[dataIndex], axisLabel)
         const totalItem = list.find(item => item?.seriesName === '总流量')
         const deviceItems = list.filter(item => item?.seriesName !== '总流量')
         deviceItems.sort((a, b) => (Number(b?.value) || 0) - (Number(a?.value) || 0))
@@ -322,7 +377,7 @@ const chartOption = computed(() => {
         const otherItems = deviceItems.slice(6)
         const otherSum = otherItems.reduce((sum, item) => sum + (Number(item?.value) || 0), 0)
 
-        let res = `<div class="font-bold mb-1">${axisLabel}</div>`
+        let res = `<div class="font-bold mb-1">${timeLabel}</div>`
         const totalVal = Number(totalItem?.value) || 0
         res += `<div class="flex justify-between gap-4 text-xs font-bold">
           <span>总流量</span>
@@ -483,7 +538,9 @@ function handleRangeChange(value: string | number | boolean | undefined) {
       </div>
 
       <el-table :data="analysisBuckets" size="small" stripe v-loading="!!loading" class="w-full">
-        <el-table-column prop="bucket" label="时间" min-width="140" />
+        <el-table-column label="时间" min-width="140">
+          <template #default="scope">{{ formatTrafficBucketTime(scope?.row || {}) }}</template>
+        </el-table-column>
         <el-table-column label="下载" min-width="120">
           <template #default="scope">{{ formatBytes(scope?.row?.rx_bytes) }}</template>
         </el-table-column>
