@@ -101,4 +101,15 @@ func (p *Pool) SetSIPRegistrar(r *sipgw.Registrar) {
 		}
 		tx.Respond(sip.NewResponseFromRequest(req, 481, "Call/Transaction Does Not Exist", nil))
 	})
+
+	r.SetOnUpdate(func(deviceID string, req *sip.Request, tx sip.ServerTransaction) {
+		p.mu.RLock()
+		voiceGW := p.voiceGateway
+		p.mu.RUnlock()
+		if voiceGW != nil && voiceGW.GetAgent(deviceID) != nil {
+			voiceGW.HandleClientUpdate(deviceID, req, tx)
+			return
+		}
+		tx.Respond(sip.NewResponseFromRequest(req, 481, "Call/Transaction Does Not Exist", nil))
+	})
 }

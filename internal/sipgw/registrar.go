@@ -74,6 +74,8 @@ type Registrar struct {
 	onCancel func(deviceID string, req *sip.Request, tx sip.ServerTransaction)
 	// PRACK 回调
 	onPrack func(deviceID string, req *sip.Request, tx sip.ServerTransaction)
+	// UPDATE 回调
+	onUpdate func(deviceID string, req *sip.Request, tx sip.ServerTransaction)
 	// INFO 回调
 	onInfo func(deviceID string, req *sip.Request, tx sip.ServerTransaction)
 	// ACK 回调
@@ -169,6 +171,8 @@ func (r *Registrar) Start(ctx context.Context) error {
 
 	// 处理 PRACK (用于 100rel)
 	srv.OnRequest("PRACK", r.handlePrack)
+	// 处理 UPDATE (会话刷新/媒体重协商)
+	srv.OnRequest("UPDATE", r.handleUpdate)
 	// 处理 INFO (DTMF/补充业务等对话内信令)
 	srv.OnRequest("INFO", r.handleInfo)
 
@@ -1104,6 +1108,13 @@ func (r *Registrar) SetOnPrack(handler func(deviceID string, req *sip.Request, t
 	r.mu.Unlock()
 }
 
+// SetOnUpdate 设置 UPDATE 回调
+func (r *Registrar) SetOnUpdate(handler func(deviceID string, req *sip.Request, tx sip.ServerTransaction)) {
+	r.mu.Lock()
+	r.onUpdate = handler
+	r.mu.Unlock()
+}
+
 // SetOnInfo 设置 INFO 回调
 func (r *Registrar) SetOnInfo(handler func(deviceID string, req *sip.Request, tx sip.ServerTransaction)) {
 	r.mu.Lock()
@@ -1127,6 +1138,23 @@ func (r *Registrar) handlePrack(req *sip.Request, tx sip.ServerTransaction) {
 		// 默认回复 481 Call/Transaction Does Not Exist
 		if err := tx.Respond(sip.NewResponseFromRequest(req, 481, "Call/Transaction Does Not Exist", nil)); err != nil {
 			logger.Warn("发送 481 失败", "err", err)
+		}
+	}
+}
+
+// handleUpdate 处理 UPDATE 请求
+func (r *Registrar) handleUpdate(req *sip.Request, tx sip.ServerTransaction) {
+	username := extractUsername(req.From())
+	r.mu.RLock()
+	handler := r.onUpdate
+	r.mu.RUnlock()
+
+	user := r.GetUserByUsername(username)
+	if handler != nil && user != nil {
+		go handler(user.DeviceID, req, tx)
+	} else {
+		if err := tx.Respond(sip.NewResponseFromRequest(req, 481, "Call/Transaction Does Not Exist", nil)); err != nil {
+			logger.Warn("发送 UPDATE 481 失败", "err", err)
 		}
 	}
 }
