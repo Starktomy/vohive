@@ -75,6 +75,9 @@ func TestManagerStartRuntimeBuildsRequestAndClaimsInstance(t *testing.T) {
 	if captured.SIM == nil || captured.Access == nil {
 		t.Fatal("captured request should include SIM and Access adapters")
 	}
+	if captured.IMSRegistrar == nil {
+		t.Fatal("captured request should include default IMS registrar")
+	}
 	if captured.NetworkMode != "LTE" || captured.Dataplane.Mode != "userspace" {
 		t.Fatalf("captured request network/dataplane = %q/%q", captured.NetworkMode, captured.Dataplane.Mode)
 	}

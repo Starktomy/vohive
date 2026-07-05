@@ -102,6 +102,7 @@ func (m *Manager) StartRuntime(ctx context.Context, req RuntimeStartRequest) (Ru
 		Access:        runtimehost.NewModemAccessAdapter(req.Modem),
 		Dataplane:     req.Dataplane,
 		Proxy:         req.Prepared.Proxy,
+		IMSRegistrar:  runtimehost.WireIMSRegistrar{},
 		DeliveryStore: req.DeliveryStore,
 		Dispatch:      req.Dispatch,
 		BeforeStart:   req.BeforeStart,
