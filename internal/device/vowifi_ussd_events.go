@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iniwex5/vowifi-go/runtimehost/eventhost"
+	"github.com/boa-z/vowifi-go/runtimehost/eventhost"
 )
 
 type VoWiFiUSSDEvent struct {

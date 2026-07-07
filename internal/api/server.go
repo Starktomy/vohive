@@ -18,6 +18,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/boa-z/vowifi-go/runtimehost/messaging"
+	"github.com/boa-z/vowifi-go/runtimehost/voicehost"
 	"github.com/iniwex5/vohive/internal/config"
 	"github.com/iniwex5/vohive/internal/data/repo"
 	"github.com/iniwex5/vohive/internal/db"
@@ -28,8 +30,6 @@ import (
 	proxytraffic "github.com/iniwex5/vohive/internal/proxy/traffic"
 	vwebsheet "github.com/iniwex5/vohive/internal/websheet"
 	"github.com/iniwex5/vohive/pkg/smscodec"
-	"github.com/iniwex5/vowifi-go/runtimehost/messaging"
-	"github.com/iniwex5/vowifi-go/runtimehost/voicehost"
 
 	"github.com/iniwex5/vohive/pkg/logger"
 	"github.com/spf13/viper"

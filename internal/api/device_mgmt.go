@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/boa-z/vowifi-go/runtimehost"
 	"github.com/iniwex5/vohive/internal/apduarbiter"
 	"github.com/iniwex5/vohive/internal/backend"
 	"github.com/iniwex5/vohive/internal/config"
@@ -21,7 +22,6 @@ import (
 	"github.com/iniwex5/vohive/internal/modem"
 	proxytraffic "github.com/iniwex5/vohive/internal/proxy/traffic"
 	"github.com/iniwex5/vohive/pkg/logger"
-	"github.com/iniwex5/vowifi-go/runtimehost"
 
 	"github.com/gin-gonic/gin"
 )

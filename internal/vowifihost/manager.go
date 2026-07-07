@@ -3,17 +3,17 @@ package vowifihost
 import (
 	"context"
 
-	"github.com/iniwex5/vowifi-go/runtimehost"
-	"github.com/iniwex5/vowifi-go/runtimehost/eventhost"
-	"github.com/iniwex5/vowifi-go/runtimehost/messaging"
-	"github.com/iniwex5/vowifi-go/runtimehost/voicehost"
+	"github.com/boa-z/vowifi-go/runtimehost"
+	"github.com/boa-z/vowifi-go/runtimehost/eventhost"
+	"github.com/boa-z/vowifi-go/runtimehost/messaging"
+	"github.com/boa-z/vowifi-go/runtimehost/voicehost"
 )
 
 type Manager struct {
-	runtimeStore RuntimeStore
-	stateHub     *StateHub
-	recoverStore *DesiredRecoverStore
-	lifecycle    *LifecycleController
+	runtimeStore  RuntimeStore
+	stateHub      *StateHub
+	recoverStore  *DesiredRecoverStore
+	lifecycle     *LifecycleController
 	runtimeStart  runtimeStartFunc
 	adapter       Adapter
 	voiceGateway  *voicehost.Gateway

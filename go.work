@@ -6,6 +6,4 @@ use (
 	../vowifi-go
 )
 
-replace github.com/iniwex5/vowifi-go v1.1.2 => ../vowifi-go
-
 replace github.com/iniwex5/quectel-qmi-go v0.6.0 => ../quectel-qmi-go

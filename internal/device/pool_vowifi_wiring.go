@@ -3,9 +3,9 @@ package device
 import (
 	"fmt"
 
+	"github.com/boa-z/vowifi-go/runtimehost/voicehost"
 	"github.com/emiago/sipgo/sip"
 	"github.com/iniwex5/vohive/internal/sipgw"
-	"github.com/iniwex5/vowifi-go/runtimehost/voicehost"
 
 	"github.com/iniwex5/vohive/pkg/logger"
 )
