@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/iniwex5/vohive/internal/config"
-	"github.com/iniwex5/vohive/pkg/logger"
+	"github.com/Starktomy/vohive/internal/config"
+	"github.com/Starktomy/vohive/pkg/logger"
 
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"

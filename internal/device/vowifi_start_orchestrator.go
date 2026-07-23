@@ -6,17 +6,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boa-z/vowifi-go/engine/swu"
-	"github.com/boa-z/vowifi-go/runtimehost"
-	"github.com/boa-z/vowifi-go/runtimehost/carrier"
-	"github.com/boa-z/vowifi-go/runtimehost/identity"
-	"github.com/iniwex5/vohive/internal/backend"
-	"github.com/iniwex5/vohive/internal/db"
-	innersim "github.com/iniwex5/vohive/internal/sim"
-	"github.com/iniwex5/vohive/internal/upstreamproxy"
-	"github.com/iniwex5/vohive/internal/vowifihost"
-	"github.com/iniwex5/vohive/pkg/logger"
-	"github.com/iniwex5/vohive/pkg/mbim"
+	"github.com/Starktomy/vohive/internal/backend"
+	"github.com/Starktomy/vohive/internal/db"
+	innersim "github.com/Starktomy/vohive/internal/sim"
+	"github.com/Starktomy/vohive/internal/upstreamproxy"
+	"github.com/Starktomy/vohive/internal/vowifihost"
+	"github.com/Starktomy/vohive/pkg/logger"
+	"github.com/Starktomy/vohive/pkg/mbim"
+	"github.com/Starktomy/vowifi-go/engine/swu"
+	"github.com/Starktomy/vowifi-go/runtimehost"
+	"github.com/Starktomy/vowifi-go/runtimehost/carrier"
+	"github.com/Starktomy/vowifi-go/runtimehost/identity"
 )
 
 type voWiFiStartContext struct {
@@ -322,8 +322,8 @@ func (p *Pool) beforeVoWiFiStart(deviceID string, modemIface runtimehost.Modem, 
 			})
 			if probeErr != nil {
 				startupState.LastErrorClass = "proxy"
-				startupState.LastError = probeErr.Error()
-				startupState.LastReason = probeRes.FailureSummary()
+				startupState.LastError = runtimehost.SafeDiagnosticError(probeErr)
+				startupState.LastReason = runtimehost.SafeDiagnosticString(probeRes.FailureSummary())
 				p.recordVoWiFiStartupState(deviceID, startupState)
 				return fmt.Errorf("前置代理自检失败: %w", probeErr)
 			}

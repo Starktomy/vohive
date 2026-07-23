@@ -8,17 +8,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/iniwex5/vohive/internal/apduarbiter"
-	"github.com/iniwex5/vohive/internal/backend"
-	"github.com/iniwex5/vohive/internal/config"
-	"github.com/iniwex5/vohive/internal/esim"
-	mbimcore "github.com/iniwex5/vohive/internal/mbim"
-	"github.com/iniwex5/vohive/internal/modem"
-	qmicore "github.com/iniwex5/vohive/internal/qmi"
-	"github.com/iniwex5/vohive/pkg/logger"
-	"github.com/iniwex5/vohive/pkg/smscodec"
+	"github.com/Starktomy/vohive/internal/apduarbiter"
+	"github.com/Starktomy/vohive/internal/backend"
+	"github.com/Starktomy/vohive/internal/config"
+	"github.com/Starktomy/vohive/internal/esim"
+	mbimcore "github.com/Starktomy/vohive/internal/mbim"
+	"github.com/Starktomy/vohive/internal/modem"
+	qmicore "github.com/Starktomy/vohive/internal/qmi"
+	"github.com/Starktomy/vohive/pkg/logger"
+	"github.com/Starktomy/vohive/pkg/smscodec"
 
-	qmimanager "github.com/iniwex5/quectel-qmi-go/pkg/manager"
+	qmimanager "github.com/Starktomy/quectel-qmi-go/pkg/manager"
 )
 
 // deriveESIMTransport 从 device_backend 推导 eSIM 传输通道。

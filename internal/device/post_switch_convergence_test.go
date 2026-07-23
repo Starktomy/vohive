@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	qmimanager "github.com/iniwex5/quectel-qmi-go/pkg/manager"
-	"github.com/iniwex5/quectel-qmi-go/pkg/qmi"
-	"github.com/iniwex5/vohive/internal/backend"
-	"github.com/iniwex5/vohive/internal/config"
+	qmimanager "github.com/Starktomy/quectel-qmi-go/pkg/manager"
+	"github.com/Starktomy/quectel-qmi-go/pkg/qmi"
+	"github.com/Starktomy/vohive/internal/backend"
+	"github.com/Starktomy/vohive/internal/config"
 )
 
 func TestPostSwitchDecisionTransportFatalWaitsForControl(t *testing.T) {

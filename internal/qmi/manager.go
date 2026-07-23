@@ -11,14 +11,14 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/iniwex5/vohive/internal/apduarbiter"
-	"github.com/iniwex5/vohive/internal/config"
-	"github.com/iniwex5/vohive/internal/netprobe"
-	"github.com/iniwex5/vohive/pkg/logger"
+	"github.com/Starktomy/vohive/internal/apduarbiter"
+	"github.com/Starktomy/vohive/internal/config"
+	"github.com/Starktomy/vohive/internal/netprobe"
+	"github.com/Starktomy/vohive/pkg/logger"
 
-	qmimanager "github.com/iniwex5/quectel-qmi-go/pkg/manager"
-	"github.com/iniwex5/quectel-qmi-go/pkg/netcfg"
-	"github.com/iniwex5/quectel-qmi-go/pkg/qmi"
+	qmimanager "github.com/Starktomy/quectel-qmi-go/pkg/manager"
+	"github.com/Starktomy/quectel-qmi-go/pkg/netcfg"
+	"github.com/Starktomy/quectel-qmi-go/pkg/qmi"
 	"github.com/miekg/dns"
 )
 

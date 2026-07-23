@@ -3,7 +3,7 @@ package sim
 import (
 	"errors"
 
-	swusim "github.com/boa-z/vowifi-go/engine/sim"
+	swusim "github.com/Starktomy/vowifi-go/engine/sim"
 )
 
 const (

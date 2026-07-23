@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/iniwex5/vohive/pkg/logger"
+	"github.com/Starktomy/vohive/pkg/logger"
 
 	"go.bug.st/serial"
 )

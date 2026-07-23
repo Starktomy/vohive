@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/iniwex5/vohive/internal/device"
-	"github.com/iniwex5/vohive/internal/modem"
-	"github.com/iniwex5/vohive/internal/smsnotify"
-	"github.com/iniwex5/vohive/pkg/logger"
-	"github.com/iniwex5/vohive/pkg/smscodec"
+	"github.com/Starktomy/vohive/internal/device"
+	"github.com/Starktomy/vohive/internal/modem"
+	"github.com/Starktomy/vohive/internal/smsnotify"
+	"github.com/Starktomy/vohive/pkg/logger"
+	"github.com/Starktomy/vohive/pkg/smscodec"
 )
 
 type Poller struct {

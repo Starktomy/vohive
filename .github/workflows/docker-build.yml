@@ -17,7 +17,28 @@ on:
         default: "true"
 
 jobs:
+  validate:
+    name: Validate manual container gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: |
+            go.mod
+            go.sum
+
+      - name: Run manual container gates
+        run: ./scripts/ci.sh workflow-lint hygiene release-hygiene container-hygiene tidy test
+
   build:
+    needs: validate
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -62,16 +83,13 @@ jobs:
           file: Dockerfile.github
           platforms: ${{ inputs.platforms }}
           push: ${{ inputs.push == 'true' }}
-          tags: ghcr.io/${{ github.repository }}/vohive:dev
+          tags: ghcr.io/${{ github.repository }}:dev
           provenance: false
           sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          secrets: |
-            gh_pat=${{ secrets.GH_PAT }}
           build-args: |
             VERSION=${{ steps.vars.outputs.version }}
             BUILDTIME=${{ steps.vars.outputs.buildtime }}
             REVISION=${{ steps.vars.outputs.revision }}
             ENABLE_UPX=${{ steps.vars.outputs.enable_upx }}
-            GH_PAT=${{ secrets.GH_PAT }}

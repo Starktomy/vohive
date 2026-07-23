@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iniwex5/vohive/internal/backend"
-	"github.com/iniwex5/vohive/internal/db"
-	"github.com/iniwex5/vohive/internal/modem"
-	qmicore "github.com/iniwex5/vohive/internal/qmi"
-	"github.com/iniwex5/vohive/internal/smsnotify"
-	"github.com/iniwex5/vohive/pkg/logger"
-	"github.com/iniwex5/vohive/pkg/smscodec"
+	"github.com/Starktomy/vohive/internal/backend"
+	"github.com/Starktomy/vohive/internal/db"
+	"github.com/Starktomy/vohive/internal/modem"
+	qmicore "github.com/Starktomy/vohive/internal/qmi"
+	"github.com/Starktomy/vohive/internal/smsnotify"
+	"github.com/Starktomy/vohive/pkg/logger"
+	"github.com/Starktomy/vohive/pkg/smscodec"
 
-	qmimanager "github.com/iniwex5/quectel-qmi-go/pkg/manager"
-	"github.com/iniwex5/quectel-qmi-go/pkg/qmi"
+	qmimanager "github.com/Starktomy/quectel-qmi-go/pkg/manager"
+	"github.com/Starktomy/quectel-qmi-go/pkg/qmi"
 )
 
 func (w *Worker) smsQMICore() qmiSMSCore {

@@ -14,8 +14,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	runtimee911 "github.com/boa-z/vowifi-go/runtimehost/e911"
-	"github.com/iniwex5/vohive/pkg/logger"
+	"github.com/Starktomy/vohive/pkg/logger"
+	runtimee911 "github.com/Starktomy/vowifi-go/runtimehost/e911"
 )
 
 const maxEntitlementTraceBody = 64 * 1024

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/iniwex5/vohive/pkg/mbim"
+	"github.com/Starktomy/vohive/pkg/mbim"
 )
 
 type fakeNetcfg struct {

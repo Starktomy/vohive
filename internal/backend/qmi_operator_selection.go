@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/iniwex5/quectel-qmi-go/pkg/qmi"
+	"github.com/Starktomy/quectel-qmi-go/pkg/qmi"
 )
 
 // ============================================================================

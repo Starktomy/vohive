@@ -34,7 +34,7 @@ EOF
 ```yaml
 services:
   vohive:
-    image: iniwex/vohive:latest
+    image: ghcr.io/Starktomy/vohive:latest
     container_name: vohive
     restart: unless-stopped
     ports:
@@ -131,8 +131,8 @@ environment:
 
 ## 📖 文档
 
-完整文档请访问: [GitHub](https://github.com/iniwex5/vohive)
+完整文档请访问: [GitHub](https://github.com/Starktomy/vohive)
 
 ## 📝 License
 
-MIT License
+PolyForm Noncommercial License 1.0.0; see [LICENSE](LICENSE).

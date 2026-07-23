@@ -5,12 +5,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boa-z/vowifi-go/runtimehost"
-	"github.com/boa-z/vowifi-go/runtimehost/carrier"
-	"github.com/iniwex5/vohive/internal/apduarbiter"
-	"github.com/iniwex5/vohive/internal/backend"
-	"github.com/iniwex5/vohive/internal/vowifihost"
-	"github.com/iniwex5/vohive/pkg/logger"
+	"github.com/Starktomy/vohive/internal/apduarbiter"
+	"github.com/Starktomy/vohive/internal/backend"
+	"github.com/Starktomy/vohive/internal/vowifihost"
+	"github.com/Starktomy/vohive/pkg/logger"
+	"github.com/Starktomy/vowifi-go/runtimehost"
+	"github.com/Starktomy/vowifi-go/runtimehost/carrier"
 )
 
 func logVoWiFiFailureSummary(traceID, deviceID, stage, errorClass, reason string, retryable bool, nextRetry time.Duration) {
@@ -40,13 +40,14 @@ func (p *Pool) handleVoWiFiStartupError(traceID, deviceID, runtimeEPDGOverride s
 		return err
 	}
 
-	logger.Error("VoWiFi 启动失败", "trace_id", traceID, "device", deviceID, "err", err)
+	safeErr := runtimehost.SafeDiagnosticError(err)
+	logger.Error("VoWiFi 启动失败", "trace_id", traceID, "device", deviceID, "err", safeErr)
 	retryable := shouldRetryVoWiFiAutoStart(err)
 	nextRetry := vowifihost.DesiredRecoverDelay(0)
 	if !retryable {
 		nextRetry = 0
 	}
-	logVoWiFiFailureSummary(traceID, deviceID, "startup", state.LastErrorClass, err.Error(), retryable, nextRetry)
+	logVoWiFiFailureSummary(traceID, deviceID, "startup", state.LastErrorClass, safeErr, retryable, nextRetry)
 	p.restoreNetworkAfterVoWiFiStartupFailure(traceID, deviceID, w)
 	logger.Debug("EnableVoWiFi 结束（失败）", "trace_id", traceID, "device", deviceID, "cost_ms", time.Since(enableStart).Milliseconds())
 	return err

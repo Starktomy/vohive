@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	qmiq "github.com/iniwex5/quectel-qmi-go/pkg/qmi"
-	"github.com/iniwex5/vohive/internal/apduarbiter"
-	"github.com/iniwex5/vohive/pkg/mbim"
+	qmiq "github.com/Starktomy/quectel-qmi-go/pkg/qmi"
+	"github.com/Starktomy/vohive/internal/apduarbiter"
+	"github.com/Starktomy/vohive/pkg/mbim"
 )
 
 func TestNewQMIUIMTransportWithOptionsStoresClientOptions(t *testing.T) {

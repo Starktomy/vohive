@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boa-z/vowifi-go/runtimehost"
+	"github.com/Starktomy/vowifi-go/runtimehost"
 )
 
 func TestManagerStateSubscriptionBroadcastAndCleanup(t *testing.T) {

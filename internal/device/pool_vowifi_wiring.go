@@ -3,11 +3,11 @@ package device
 import (
 	"fmt"
 
-	"github.com/boa-z/vowifi-go/runtimehost/voicehost"
+	"github.com/Starktomy/vohive/internal/sipgw"
+	"github.com/Starktomy/vowifi-go/runtimehost/voicehost"
 	"github.com/emiago/sipgo/sip"
-	"github.com/iniwex5/vohive/internal/sipgw"
 
-	"github.com/iniwex5/vohive/pkg/logger"
+	"github.com/Starktomy/vohive/pkg/logger"
 )
 
 // SetVoiceGateway 注入 VoWiFi 语音网关，用于优先走 IMS 外呼/挂断路径。

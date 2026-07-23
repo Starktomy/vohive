@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and Push GHCR Image
 
 on:
   push:
@@ -12,11 +12,38 @@ on:
         default: "true"
 
 env:
-  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/vohive
+  CONTAINER_IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
+  validate:
+    name: Validate container release gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: |
+            go.mod
+            go.sum
+
+      - name: Run container release gates
+        run: ./scripts/ci.sh workflow-lint hygiene release-hygiene container-hygiene tidy test
+
   build:
     runs-on: ubuntu-latest
+    needs: validate
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,21 +54,24 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to DockerHub
+      - name: Login to GHCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.DOCKER_IMAGE }}
+          images: ${{ env.CONTAINER_IMAGE }}
           tags: |
             # 总是打上 latest 标签
             type=raw,value=latest,enable=true
+            # 保留 Git tag 标签 (例如 v1.0.0)
+            type=ref,event=tag
             # 语义化精确版本标签 (例如 v1.0.0 会被转换为 1.0.0)
             type=semver,pattern={{version}}
 
@@ -81,11 +111,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          secrets: |
-            gh_pat=${{ secrets.GH_PAT }}
           build-args: |
             VERSION=${{ steps.vars.outputs.version }}
             BUILDTIME=${{ steps.vars.outputs.buildtime }}
             REVISION=${{ steps.vars.outputs.revision }}
             ENABLE_UPX=${{ steps.vars.outputs.enable_upx }}
-            GH_PAT=${{ secrets.GH_PAT }}

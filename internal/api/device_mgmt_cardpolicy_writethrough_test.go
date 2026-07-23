@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Starktomy/vohive/internal/config"
+	"github.com/Starktomy/vohive/internal/db"
+	"github.com/Starktomy/vohive/internal/device"
 	"github.com/gin-gonic/gin"
-	"github.com/iniwex5/vohive/internal/config"
-	"github.com/iniwex5/vohive/internal/db"
-	"github.com/iniwex5/vohive/internal/device"
 )
 
 func TestCardPolicyFromDeviceConfigMapping(t *testing.T) {

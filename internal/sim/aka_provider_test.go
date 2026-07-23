@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	swusim "github.com/boa-z/vowifi-go/engine/sim"
+	swusim "github.com/Starktomy/vowifi-go/engine/sim"
 )
 
 var _ swusim.AKAProvider = (*ATAKAProvider)(nil)
