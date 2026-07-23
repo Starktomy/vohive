@@ -11,14 +11,14 @@ import (
 	"testing"
 	"unsafe"
 
+	sgp22 "github.com/damonto/euicc-go/v2"
+	"github.com/gin-gonic/gin"
 	"github.com/Starktomy/vohive/internal/apduarbiter"
 	"github.com/Starktomy/vohive/internal/config"
 	"github.com/Starktomy/vohive/internal/db"
 	"github.com/Starktomy/vohive/internal/device"
 	"github.com/Starktomy/vohive/internal/esim"
 	"github.com/Starktomy/vohive/internal/modem"
-	sgp22 "github.com/damonto/euicc-go/v2"
-	"github.com/gin-gonic/gin"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -92,6 +92,9 @@ func TestBuildOverviewLiteItemIncludesLocalPhone(t *testing.T) {
 
 	if item.LocalPhone != "+8613900139000" {
 		t.Fatalf("LocalPhone=%q want=+8613900139000", item.LocalPhone)
+	}
+	if item.LocalPhoneSource != db.PhoneNumberSourceVoWiFi {
+		t.Fatalf("LocalPhoneSource=%q want=%q", item.LocalPhoneSource, db.PhoneNumberSourceVoWiFi)
 	}
 }
 
