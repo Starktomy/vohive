@@ -98,5 +98,30 @@ func (s *Server) handlePutCardPolicy(c *gin.Context) {
 		return
 	}
 
+	// 同步 worker.Config：PUT 是"直接覆盖卡策略"，前端可能一次设多个字段。
+	// 三个 SetWorker*Policy 内部互斥（开 VoWiFi ⇒ airplane+network=false，开网络 ⇒ 其余两项=false），
+	// 不能简单按顺序调用：后一个会覆盖前一个的互斥副作用。改为按"最终生效模式"调一次：
+	//   - VoWiFi=true（用户意图） → SetWorkerVoWiFiPolicy（顺便清 network=false，airplane=true 表征"VoWiFi 接管射频"）
+	//   - 否则若 airplane=true    → SetWorkerAirplanePolicy（清 VoWiFi+network）
+	//   - 否则若 network=true     → SetWorkerNetworkPolicy（清 VoWiFi+airplane）
+	//   - 三个都关                  → 同步 airplane=false 走网络停用链
+	// 没有匹配 worker（设备未识别/离线）时静默跳过——worker 上线时仍会走 resolveAndApplyPolicy 投影。
+	if w := s.pool.WorkerByICCID(iccid); w != nil {
+		deviceID := w.ID
+		switch {
+		case pol.VoWiFiEnabled:
+			s.pool.SetWorkerVoWiFiPolicy(deviceID, true)
+		case pol.AirplaneEnabled:
+			s.pool.SetWorkerAirplanePolicy(deviceID, true)
+		case pol.NetworkEnabled:
+			s.pool.SetWorkerNetworkPolicy(deviceID, true, pol.IPVersion, pol.APN)
+		default:
+			// 三模式全关：按"清零"语义调用，仅同步 airplane=false（关闭飞行回退的兜底）。
+			s.pool.SetWorkerAirplanePolicy(deviceID, false)
+			s.pool.SetWorkerVoWiFiPolicy(deviceID, false)
+			s.pool.SetWorkerNetworkPolicy(deviceID, false, pol.IPVersion, pol.APN)
+		}
+	}
+
 	c.JSON(http.StatusOK, pol)
 }

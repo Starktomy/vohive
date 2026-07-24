@@ -2359,6 +2359,22 @@ func (p *Pool) GetWorker(id string) *Worker {
 	return p.workers[id]
 }
 
+// WorkerByICCID 反查持有指定 ICCID 的 worker（PUT /cards/:iccid/policy 等仅知 ICCID 的入口使用）。
+// 找不到返回 nil。匹配的是 worker 当前 CurrentICCID——切换态时可能尚未刷新，读到的是旧卡。
+func (p *Pool) WorkerByICCID(iccid string) *Worker {
+	if strings.TrimSpace(iccid) == "" {
+		return nil
+	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	for _, w := range p.workers {
+		if w != nil && w.CurrentICCID() == iccid {
+			return w
+		}
+	}
+	return nil
+}
+
 func (p *Pool) LifecycleSnapshot(deviceID string) LifecycleSnapshot {
 	if p == nil || p.lifecycle == nil {
 		return LifecycleSnapshot{Phase: LifecyclePhaseOffline}
