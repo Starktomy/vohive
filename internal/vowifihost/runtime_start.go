@@ -7,8 +7,10 @@ import (
 	"time"
 
 	swusim "github.com/Starktomy/vowifi-go/engine/sim"
+	"github.com/Starktomy/vowifi-go/engine/swu/ikev2"
 	"github.com/Starktomy/vowifi-go/runtimehost"
 	"github.com/Starktomy/vowifi-go/runtimehost/eventhost"
+	"github.com/Starktomy/vowifi-go/runtimehost/identity"
 	"github.com/Starktomy/vowifi-go/runtimehost/messaging"
 	"github.com/Starktomy/vowifi-go/runtimehost/voicehost"
 )
@@ -102,6 +104,7 @@ func (m *Manager) StartRuntime(ctx context.Context, req RuntimeStartRequest) (Ru
 		Access:        runtimehost.NewModemAccessAdapter(req.Modem),
 		Dataplane:     req.Dataplane,
 		Proxy:         req.Prepared.Proxy,
+		ResponderID:   buildVoWiFiResponderID(prepared),
 		IMSRegistrar:  runtimehost.WireIMSRegistrar{},
 		DeliveryStore: req.DeliveryStore,
 		Dispatch:      req.Dispatch,
@@ -131,4 +134,29 @@ func (m *Manager) StartRuntime(ctx context.Context, req RuntimeStartRequest) (Ru
 	}
 
 	return RuntimeStartResult{Instance: inst}, nil
+}
+
+// buildVoWiFiResponderID returns the IDr (ePDG identity) to embed in the first
+// IKE_AUTH request. Per 3GPP TS 24.302 §7.2.2.1 the UE MUST send IDr — without
+// it T-Mobile US (and most TS-compliant ePDGs) reject with INVALID_SYNTAX.
+//
+// We use the IMS APN from the prepared carrier session as ID_FQDN. StrongSwan /
+// swu_ike.py default to the bare APN ("ims"); the operator-identified APN-FQDN
+// form ("ims.apn.epc.mnc<MNC3>.mcc<MCC3>.pub.3gppnetwork.org") is also accepted
+// but only matters when the carrier requires it. The bare-APN form is the
+// empirically-proven most-compatible choice (see swu_ike.py IDR_MODE=apn default).
+//
+// Returning the zero-value Identity from BuildIKEAuthInitialPayloads means "omit
+// IDr" (legacy behaviour preserved for non-3GPP servers).
+func buildVoWiFiResponderID(prepared identity.PreparedSession) ikev2.Identity {
+	apn := strings.TrimSpace(prepared.APN)
+	if apn == "" {
+		// No APN resolved from carrier policy — keep legacy behaviour rather
+		// than fabricating an IDr that the ePDG might reject.
+		return ikev2.Identity{}
+	}
+	return ikev2.Identity{
+		Type: ikev2.IDFQDN,
+		Data: []byte(apn),
+	}
 }

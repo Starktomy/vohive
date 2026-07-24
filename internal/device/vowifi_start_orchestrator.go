@@ -202,7 +202,7 @@ func (p *Pool) prepareVoWiFiStartContext(deviceID, traceID, runtimeEPDGOverride 
 		return startCtx, err
 	}
 
-	runtimehost.SetLogger(logger.ZapLogger())
+	runtimehost.SetLogger(vowifiHostLogSink{})
 	prepared, errPrepare := identity.PrepareStart(identity.PrepareStartInput{
 		DeviceID:            deviceID,
 		Profile:             startProfile,
@@ -329,5 +329,25 @@ func (p *Pool) beforeVoWiFiStart(deviceID string, modemIface runtimehost.Modem, 
 			}
 		}
 		return nil
+	}
+}
+
+// vowifiHostLogSink adapts vowifi-go runtimehost.LogSink messages into the
+// vohive zap logger so IKEv2 protocol diagnostics (SA_INIT retries, IKE_AUTH
+// response sizes, INVALID_KE_PAYLOAD detection, etc.) appear in /tmp/vohive.log
+// alongside the orchestrator's own INFO lines. Used for diagnosing INVALID_SYNTAX
+// rejections on ePDG IKE_AUTH (T-Mobile US 3GPP TS 24.302 interop).
+type vowifiHostLogSink struct{}
+
+func (vowifiHostLogSink) Write(level, msg string) {
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "debug":
+		logger.Debug("vowifi-host", "msg", msg)
+	case "warn", "warning":
+		logger.Warn("vowifi-host", "msg", msg)
+	case "error":
+		logger.Error("vowifi-host", "msg", msg)
+	default:
+		logger.Info("vowifi-host", "msg", msg)
 	}
 }
