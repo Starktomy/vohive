@@ -1,6 +1,8 @@
 package device
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,12 +14,15 @@ func TestAddWorkerQMIManagedRebindsByIMEIWhenControlDeviceGone(t *testing.T) {
 	// QMI 托管设备:配置 control_device 指向不存在节点,但配置了正确 IMEI;
 	// 注入一块带该 IMEI 的新路径 QMI 硬件。bootstrap 应按 IMEI 取回新路径并采纳。
 
+	newControlDevice := filepath.Join(t.TempDir(), "cdc-wdm-new-qmi")
+	require.NoError(t, os.WriteFile(newControlDevice, []byte{}, 0o666))
+
 	originalDiscover := discoverQMIDevicesFn
 	defer func() { discoverQMIDevicesFn = originalDiscover }()
 	discoverQMIDevicesFn = func() ([]QMIDevice, error) {
 		return []QMIDevice{
 			{
-				ControlPath:  "/dev/cdc-wdm-new-qmi",
+				ControlPath:  newControlDevice,
 				NetInterface: "wwan-new",
 				USBPath:      "1-2.3",
 				ATPort:       "/dev/ttyUSB-new",
@@ -28,7 +33,7 @@ func TestAddWorkerQMIManagedRebindsByIMEIWhenControlDeviceGone(t *testing.T) {
 	originalResolveQMI := resolveDiscoveredQMIDeviceFn
 	defer func() { resolveDiscoveredQMIDeviceFn = originalResolveQMI }()
 	resolveDiscoveredQMIDeviceFn = func(dev QMIDevice, timeout time.Duration, allowProbe bool) (QMIDevice, string) {
-		if dev.ControlPath == "/dev/cdc-wdm-new-qmi" {
+		if dev.ControlPath == newControlDevice {
 			return dev, "123456789012345"
 		}
 		return dev, ""
@@ -49,7 +54,7 @@ func TestAddWorkerQMIManagedRebindsByIMEIWhenControlDeviceGone(t *testing.T) {
 
 	// 此时 /dev/nonexistent-control-old 不存在，controlDeviceStatErr != nil。
 	// 但 shouldDiscoverQMIManagedBootstrapByIMEI 会返回 true。
-	// 它会用 discovery 取回 /dev/cdc-wdm-new-qmi，并用新的 QMI attachment 启动 worker。
+	// 它会用 discovery 取回 newControlDevice，并用新的 QMI attachment 启动 worker。
 	w, err := p.AddWorkerFromConfig(devCfg)
 	require.NoError(t, err)
 	require.NotNil(t, w)
@@ -58,12 +63,12 @@ func TestAddWorkerQMIManagedRebindsByIMEIWhenControlDeviceGone(t *testing.T) {
 		_ = p.Shutdown()
 	})
 
-	require.Equal(t, "/dev/cdc-wdm-new-qmi", w.Config.ControlDevice)
-	require.Equal(t, "/dev/cdc-wdm-new-qmi", w.Config.QMIDevice)
+	require.Equal(t, newControlDevice, w.Config.ControlDevice)
+	require.Equal(t, newControlDevice, w.Config.QMIDevice)
 	require.Equal(t, "wwan-new", w.Config.Interface)
 	require.Equal(t, "1-2.3", w.Config.USBPath)
 	require.Equal(t, "/dev/ttyUSB-new", w.Config.ATPort)
 	require.Equal(t, "/dev/ttyUSB-new", w.Config.ManagePort)
 	require.NotNil(t, w.QMICore)
-	require.Equal(t, "/dev/cdc-wdm-new-qmi", w.QMICore.ControlDevice())
+	require.Equal(t, newControlDevice, w.QMICore.ControlDevice())
 }

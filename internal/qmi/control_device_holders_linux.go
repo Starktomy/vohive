@@ -42,6 +42,9 @@ func detectQMIControlDeviceHoldersLinux(controlDevice string) (qmiControlDeviceH
 
 	targetInfo, err := os.Stat(controlDevice)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return qmiControlDeviceHolders{}, nil
+		}
 		return qmiControlDeviceHolders{}, err
 	}
 	targetStat, ok := targetInfo.Sys().(*syscall.Stat_t)
