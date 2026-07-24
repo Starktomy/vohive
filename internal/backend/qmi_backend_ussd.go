@@ -426,7 +426,12 @@ func qmiUSSDResultFromNoWait(info *qmi.VoiceUSSDNoWaitIndication) (USSDResult, e
 		return USSDResult{}, nil, false
 	}
 	if info.HasErrorCode {
-		return USSDResult{}, fmt.Errorf("QMI USSD 失败: error_code=0x%04X", info.ErrorCode), true
+		// 注意：QMI Voice USSD NoWait 的 TLV 0x10 在不同固件下既可能装 QMI protocol
+		// error code，也可能是 3GPP TS 24.080 SUPS error code（13=USSD-Busy 等）。
+		// 我们不知道 Quectel RM5xxQ 用哪一种，所以两个名字都打出来辅助排查。
+		err := fmt.Errorf("QMI USSD 失败: error_code=0x%04X (qmi=%s, sups=%s)",
+			info.ErrorCode, qmiUSSDProtocolErrorName(info.ErrorCode), qmiUSSDFailureCauseName(info.ErrorCode))
+		return USSDResult{}, err, true
 	}
 	if info.HasFailureCause {
 		return USSDResult{}, fmt.Errorf("QMI USSD 失败: %s", qmiUSSDFailureCauseDetail(info.FailureCause)), true
@@ -492,6 +497,10 @@ func qmiUSSDFailureCauseDetail(cause uint16) string {
 
 func qmiUSSDFailureCauseName(cause uint16) string {
 	switch cause {
+	// 3GPP TS 24.080 V3.0 §4.5 SUPS error codes (在 QMI Voice USSD NoWait 的
+	// TLV 0x10 上，Quectel RM5xxQ 5G SA 下固件会直接填 SUPS code 而非 QMI error)。
+	case 13:
+		return "USSD-Busy"
 	case 110:
 		return "SUPSUnknownSubscriber"
 	case 111:

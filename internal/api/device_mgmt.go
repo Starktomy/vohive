@@ -2283,6 +2283,7 @@ func (s *Server) handleDeviceMgmtExecuteUSSD(c *gin.Context) {
 	}
 	resp, err := provider.ExecuteUSSD(c.Request.Context(), cmd, timeout)
 	if err != nil {
+		logger.Warn("CS 域 USSD 失败", "device", id, "command", cmd, "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error(), "channel": "cs"})
 		return
 	}
