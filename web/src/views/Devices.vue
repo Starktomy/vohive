@@ -151,8 +151,13 @@ const filteredDevices = computed<DeviceMgmtListItem[]>(() => {
       return 0
     }
     if (sortKey.value === 'signal') {
-      av = Number(a?.modem?.signal_dbm ?? -999)
-      bv = Number(b?.modem?.signal_dbm ?? -999)
+      // 5G 模式下模块不报 RSSI，改用 RSRP 排序；其它模式用 RSSI
+      const aMode = (a?.modem?.network_mode || '').toUpperCase()
+      const bMode = (b?.modem?.network_mode || '').toUpperCase()
+      const aIs5G = aMode.includes('NR5G') || aMode === '5G' || aMode === '5GNR'
+      const bIs5G = bMode.includes('NR5G') || bMode === '5G' || bMode === '5GNR'
+      av = Number(aIs5G ? (a?.modem?.signal_rsrp ?? -999) : (a?.modem?.signal_dbm ?? -999))
+      bv = Number(bIs5G ? (b?.modem?.signal_rsrp ?? -999) : (b?.modem?.signal_dbm ?? -999))
       return sortDir.value === 'asc' ? av - bv : bv - av
     }
     return 0

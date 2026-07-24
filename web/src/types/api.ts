@@ -127,7 +127,7 @@ export type DeviceMgmtListItem = {
   network_enabled: boolean
   vowifi_enabled?: boolean
   vowifi_runtime?: VoWiFiRuntimeState
-  modem?: Pick<ModemStatus, 'operator' | 'native_spn' | 'native_mcc' | 'native_mnc' | 'network_mode' | 'network_duplex' | 'radio_band' | 'radio_channel' | 'signal_dbm' | 'signal_sinr' | 'imei' | 'iccid' | 'reg_status'>
+  modem?: Pick<ModemStatus, 'operator' | 'native_spn' | 'native_mcc' | 'native_mnc' | 'network_mode' | 'network_duplex' | 'radio_band' | 'radio_channel' | 'signal_dbm' | 'signal_rsrp' | 'signal_rsrq' | 'signal_sinr' | 'nr5g_signal_sinr' | 'imei' | 'iccid' | 'reg_status'>
 }
 
 export type DeviceConfigDTO = {

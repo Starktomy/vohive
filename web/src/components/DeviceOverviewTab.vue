@@ -102,9 +102,22 @@ function hasValidSignalDbm(dbm: number | null | undefined): dbm is number {
   return typeof dbm === 'number' && Number.isFinite(dbm) && dbm !== 0 && dbm !== -999
 }
 
+// 5G SA/NSA 下 Quectel RM5xxQ 模块固件不报 RSSI（TLV 0x18 仅含 RSRQ），
+// 此时 dBm 信号强度用 RSRP 代替。其它模式优先用真正的 RSSI (signal_dbm)。
+function signalStrengthDbm(): number | null {
+  const m = props.device?.modem
+  if (!m) return null
+  const mode = (m.network_mode || '').toUpperCase()
+  const is5G = mode.includes('NR5G') || mode === '5G' || mode === '5GNR'
+  if (is5G) {
+    return hasValidSignalDbm(m.signal_rsrp ?? null) ? (m.signal_rsrp as number) : null
+  }
+  return hasValidSignalDbm(m.signal_dbm ?? null) ? (m.signal_dbm as number) : null
+}
+
 // 0-5 格
 const signalLevel = computed<number>(() => {
-  const dbm = props.device?.modem?.signal_dbm
+  const dbm = signalStrengthDbm()
   if (!hasValidSignalDbm(dbm)) return 0
   if (dbm >= -75)  return 5
   if (dbm >= -85)  return 4
@@ -114,7 +127,7 @@ const signalLevel = computed<number>(() => {
 })
 
 const signalColor = computed<'green' | 'amber' | 'red' | 'gray'>(() => {
-  const dbm = props.device?.modem?.signal_dbm
+  const dbm = signalStrengthDbm()
   if (!hasValidSignalDbm(dbm)) return 'gray'
   if (dbm >= -85)  return 'green'
   if (dbm >= -100) return 'amber'
@@ -296,7 +309,7 @@ const networkPanelMessage = computed(() => {
             <div>
               <div class="flex items-baseline gap-1">
                 <span class="text-2xl font-extrabold tabular-nums leading-none" :class="signalColorClass">
-                  {{ device?.modem?.signal_dbm ?? '--' }}
+                  {{ signalStrengthDbm() ?? '--' }}
                 </span>
                 <span class="text-xs text-gray-400">dBm</span>
               </div>

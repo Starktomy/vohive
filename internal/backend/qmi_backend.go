@@ -296,7 +296,22 @@ func (q *QMIBackend) GetSignalInfo(ctx context.Context) (*SignalInfo, error) {
 				info.NR5GRSRQ = int(sigInfo.NR5GRSRQ)
 			}
 			if sigInfo.NR5GSINR != 0 {
-				info.NR5GSINR = qmiSNRToDB(sigInfo.NR5GSINR)
+				// quectel-qmi-go 已把 NR5G SINR 折算为 dB 整数（如 10），无需再走 ×10→dB 转换
+				info.NR5GSINR = int(sigInfo.NR5GSINR)
+			}
+			// 5G NR 5G 模式下，Quectel 私有 TLV 0x17/0x18 拆分 RSRP/RSRQ/SINR 在不同 TLV，
+			// SignalInfo.RSRP/RxQ/SINR 这种"通用"字段需要把 NR5G 的值降级合并，否则前端
+			// status.Signal* 字段会全为 0（pool.go:456-460 只读 info.RSRP/RSRQ/SINR/RSSI）。
+			// 5G SA 模式：TLV 0x18 只给 RSRQ，没有 RSRP；TLV 0x17 仍可能携带 NSA 的 RSRP/SNR
+			// （部分固件会同时填充，作为兜底）。
+			if info.RSRP == 0 && info.NR5GRSRP != 0 {
+				info.RSRP = info.NR5GRSRP
+			}
+			if info.RSRQ == 0 && info.NR5GRSRQ != 0 {
+				info.RSRQ = info.NR5GRSRQ
+			}
+			if info.SINR == 0 && info.NR5GSINR != 0 {
+				info.SINR = info.NR5GSINR
 			}
 			hasSnapshotData = true
 		}
@@ -335,7 +350,17 @@ func (q *QMIBackend) GetSignalInfo(ctx context.Context) (*SignalInfo, error) {
 			info.NR5GRSRQ = int(sigInfo.NR5GRSRQ)
 		}
 		if sigInfo.NR5GSINR != 0 {
-			info.NR5GSINR = qmiSNRToDB(sigInfo.NR5GSINR)
+			info.NR5GSINR = int(sigInfo.NR5GSINR)
+		}
+		// 同上：5G NR 字段降级到通用字段（见 snapshot 路径注释）
+		if info.RSRP == 0 && info.NR5GRSRP != 0 {
+			info.RSRP = info.NR5GRSRP
+		}
+		if info.RSRQ == 0 && info.NR5GRSRQ != 0 {
+			info.RSRQ = info.NR5GRSRQ
+		}
+		if info.SINR == 0 && info.NR5GSINR != 0 {
+			info.SINR = info.NR5GSINR
 		}
 	}
 
@@ -470,6 +495,22 @@ func (q *QMIBackend) GetServingSystem(ctx context.Context) (*ServingSystem, erro
 		}
 	case 0x0C:
 		ss.NetworkMode = "NR5G"
+		if bandInfo, bandErr := q.source.NASGetRFBandInfo(ctx); bandErr == nil {
+			ss.RadioBand, ss.RadioChannel = qmiRadioBandAndChannel(bandInfo)
+		}
+		// 5G NR 下 Quectel RM5xxQ RFBandInfo 的 RadioInterface 为 0x0C，但部分固件会
+		// 把它和 LTE 一起塞到 RadioInterface 0x08；优先用 NR5G SysInfo / CellLocation 兜底。
+		if ss.RadioBand == "" {
+			if cellInfo, cellErr := q.source.NASGetCellLocationInfo(ctx); cellErr == nil {
+				if cellInfo.NR5G != nil && cellInfo.NR5G.HasARFCN {
+					ss.RadioChannel = cellInfo.NR5G.ARFCN
+					// NR5G Band 编号在 vohive 内部我们只知道 ARFCN；
+					// 频段名（"NR5G BAND 78"）由前端根据 ARFCN 推导，避免后端硬编码 5G 频带表。
+					ss.RadioBand = "NR5G"
+				}
+			}
+		}
+		// SysInfo TLV 0x4B 在下方统一处理（按 NR5GValid 优先）
 	default:
 		ss.NetworkMode = "Unknown"
 	}
@@ -486,18 +527,61 @@ func (q *QMIBackend) GetServingSystem(ctx context.Context) (*ServingSystem, erro
 	}
 
 	if sysInfo != nil {
-		if sysInfo.TAC > 0 {
-			ss.LAC = fmt.Sprintf("%04X", sysInfo.TAC)
-		} else if sysInfo.LAC > 0 {
-			ss.LAC = fmt.Sprintf("%04X", sysInfo.LAC)
+		// 优先使用 NR5G TLV 0x4B 的 CellID/TAC（5G SA/NSA 下 0x19 通用 TLV 通常不携带小区信息）
+		if sysInfo.NR5GValid && sysInfo.NR5GTAC > 0 {
+			ss.LAC = fmt.Sprintf("%04X", sysInfo.NR5GTAC)
 		}
-		if sysInfo.CellID > 0 {
+		if sysInfo.NR5GValid && sysInfo.NR5GCellID > 0 && sysInfo.NR5GCellID != 0xFF {
+			ss.CellID = fmt.Sprintf("%X", sysInfo.NR5GCellID)
+		}
+		// 兜底：通用 TLV 0x19 的 TAC/CellID
+		if ss.LAC == "" {
+			if sysInfo.TAC > 0 {
+				ss.LAC = fmt.Sprintf("%04X", sysInfo.TAC)
+			} else if sysInfo.LAC > 0 {
+				ss.LAC = fmt.Sprintf("%04X", sysInfo.LAC)
+			}
+		}
+		if ss.CellID == "" && sysInfo.CellID > 0 {
 			ss.CellID = fmt.Sprintf("%X", sysInfo.CellID)
+		}
+	}
+
+	// Quectel RM5xxQ 5G SA 下 TLV 0x4B 的 CellID/TAC 通常是占位值（0 / 0xff），
+	// 真实小区身份通过 NAS GetCellLocationInfo TLV 0x2F 给出（含 NR5G serving cell）。
+	if ss.CellID == "" || ss.LAC == "" {
+		if cellInfo, cellErr := q.source.NASGetCellLocationInfo(ctx); cellErr == nil && cellInfo != nil {
+			if cellInfo.NR5G != nil {
+				if ss.CellID == "" && cellInfo.NR5G.GlobalCellID > 0 {
+					ss.CellID = fmt.Sprintf("%X", cellInfo.NR5G.GlobalCellID)
+				}
+				if ss.LAC == "" && cellInfo.NR5G.TAC > 0 {
+					ss.LAC = fmt.Sprintf("%04X", cellInfo.NR5G.TAC)
+				}
+			}
 		}
 	}
 
 	return ss, nil
 }
+
+// quectelNR5GBandMap 把 Quectel RM5xxQ RFBandInfo 私有 band 编号（250..290）
+// 还原为 3GPP 5G NR 频段号（n1..n86、n257..n261）。
+// 来源：QModem QCQMUX.h QMI_NAS_ACTIVE_BAND_NR5G_BAND_* enum。
+var quectelNR5GBandMap = map[uint16]string{
+	250: "1", 251: "2", 252: "3", 253: "5", 254: "7", 255: "8",
+	256: "20", 257: "28", 258: "38", 259: "41", 260: "50", 261: "51",
+	262: "66", 263: "70", 264: "71", 265: "74", 266: "75", 267: "76",
+	268: "77", 269: "78", 270: "79", 271: "80", 272: "81", 273: "82",
+	274: "83", 275: "84", 276: "85", 277: "257", 278: "258", 279: "259",
+	280: "260", 281: "261", 282: "12", 283: "25", 284: "34", 285: "39",
+	286: "40", 287: "65", 288: "86", 289: "48", 290: "14",
+}
+
+// quectelRadioInterface 标识
+const (
+	qmiRadioInterfaceNR5G uint8 = 0x0C
+)
 
 func qmiRadioBandAndChannel(info *qmi.RFBandInfo) (string, uint32) {
 	if info == nil {
@@ -506,6 +590,15 @@ func qmiRadioBandAndChannel(info *qmi.RFBandInfo) (string, uint32) {
 	for _, band := range info.Bands {
 		if band.RadioInterface == 0x08 {
 			return fmt.Sprintf("LTE BAND %d", band.ActiveBandClass), band.ActiveChannel
+		}
+	}
+	// 5G NR (Quectel RadioInterface = 0x0C)
+	for _, band := range info.Bands {
+		if band.RadioInterface == qmiRadioInterfaceNR5G {
+			if n, ok := quectelNR5GBandMap[band.ActiveBandClass]; ok {
+				return fmt.Sprintf("NR5G BAND n%s", n), band.ActiveChannel
+			}
+			return fmt.Sprintf("NR5G BAND %d", band.ActiveBandClass), band.ActiveChannel
 		}
 	}
 	for _, band := range info.Bands {

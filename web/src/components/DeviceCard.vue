@@ -64,6 +64,17 @@ function hasValidSignalDbm(dbm: number | null | undefined): dbm is number {
   return typeof dbm === 'number' && Number.isFinite(dbm) && dbm !== 0 && dbm !== -999
 }
 
+// 5G SA/NSA 下 Quectel RM5xxQ 模块固件不报 RSSI（TLV 0x18 仅含 RSRQ），
+// 此时 dBm 信号强度用 RSRP 代替。其它模式优先用真正的 RSSI (signal_dbm)。
+function signalStrengthDbm(d: { signal_dbm?: number | null; signal_rsrp?: number | null; network_mode?: string | null }): number | null {
+  const mode = (d.network_mode || '').toUpperCase()
+  const is5G = mode.includes('NR5G') || mode === '5G' || mode === '5GNR'
+  if (is5G) {
+    return hasValidSignalDbm(d.signal_rsrp ?? null) ? (d.signal_rsrp as number) : null
+  }
+  return hasValidSignalDbm(d.signal_dbm ?? null) ? (d.signal_dbm as number) : null
+}
+
 function getSignalColor(dbm: number | null | undefined) {
   if (!hasValidSignalDbm(dbm)) return 'bg-gray-300 dark:bg-gray-600'
   if (dbm > -70) return 'bg-green-500'
@@ -131,11 +142,11 @@ function getSignalBars(dbm: number | null | undefined) {
                 v-for="i in 4"
                 :key="i"
                 class="w-1 rounded-sm transition-all duration-500"
-                :class="getSignalBars(device.signal_dbm) >= i ? getSignalColor(device.signal_dbm) : 'bg-gray-200 dark:bg-gray-700'"
+                :class="getSignalBars(signalStrengthDbm(device)) >= i ? getSignalColor(signalStrengthDbm(device)) : 'bg-gray-200 dark:bg-gray-700'"
                 :style="{ height: `${i * 25}%` }"
               />
             </div>
-            <span class="text-xs font-mono text-gray-400 ml-1 hidden xl:inline">{{ device.signal_dbm }}dBm</span>
+            <span class="text-xs font-mono text-gray-400 ml-1 hidden xl:inline">{{ signalStrengthDbm(device) ?? '--' }}dBm</span>
           </div>
         </div>
 

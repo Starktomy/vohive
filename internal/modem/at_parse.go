@@ -241,7 +241,9 @@ func parseServingCellLTEInfo(resp string) (ServingCellLTEInfo, bool) {
 	if !ok {
 		return ServingCellLTEInfo{}, false
 	}
-	if !strings.Contains(line, "LTE") {
+	// Quectel RM5xxQ 在 5G SA 下用 "+QENG: ...,\"NR5G-SA\",..."，与 LTE 共享同一字段集
+	// （RSRP/RSRQ/SINR 仍在末 5 字段中）。EN-DC 会分多行返回，依赖首行识别。
+	if !strings.Contains(line, "LTE") && !strings.Contains(line, "NR5G-SA") {
 		return ServingCellLTEInfo{}, false
 	}
 	parts := strings.Split(line, ",")
@@ -253,12 +255,27 @@ func parseServingCellLTEInfo(resp string) (ServingCellLTEInfo, bool) {
 	if len(parts) > 3 {
 		info.Duplex = strings.Trim(strings.TrimSpace(parts[3]), "\"")
 	}
-	if channel, err := strconv.ParseUint(strings.TrimSpace(parts[8]), 10, 32); err == nil {
+	// LTE: parts[8]=earfcn, parts[9]=freq_band_ind
+	// NR5G-SA: parts[8]=TAC, parts[9]=ARFCN, parts[10]=band
+	// 选第一个能解析为 32 位整数的字段作为 Channel；Band 取 parts[9] / parts[10]
+	channelIdx := 8
+	bandIdx := 9
+	if strings.Contains(line, "NR5G-SA") {
+		// NR5G-SA 把 channel 放在 parts[9]=ARFCN；band 在 parts[10]
+		channelIdx = 9
+		bandIdx = 10
+	}
+	if channel, err := strconv.ParseUint(strings.TrimSpace(parts[channelIdx]), 10, 32); err == nil {
 		info.Channel = uint32(channel)
 	}
-	band := strings.TrimSpace(parts[9])
+	band := strings.TrimSpace(parts[bandIdx])
 	if band != "" {
-		info.Band = "LTE BAND " + strings.Trim(band, "\"")
+		band = strings.Trim(band, "\"")
+		if strings.Contains(line, "NR5G-SA") {
+			info.Band = "NR5G BAND " + band
+		} else {
+			info.Band = "LTE BAND " + band
+		}
 	}
 
 	tail := parts[len(parts)-5:]
