@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Starktomy/vohive/internal/db"
+	"github.com/Starktomy/vohive/pkg/logger"
 	"github.com/gin-gonic/gin"
 )
 
@@ -68,7 +69,21 @@ func (s *Server) handleDeviceVoWiFiPatch(c *gin.Context) {
 		s.patchCardPolicyForDevice(deviceID, vowifiEnablePolicyMutation)
 		// 同步 w.Config，使概览即时切到 VoWiFi 模式面板（EnableVoWiFi 不碰 Config）。
 		s.pool.SetWorkerVoWiFiPolicy(deviceID, true)
-		s.handleVoWiFiEnable(c)
+		// EnableVoWiFi 走 SWU tunnel 建立（默认 8s+ I/O 超时 + IKE 协议握手）会同步阻塞
+		// PATCH 响应，前端一直转圈。期间用户再点 disable 会被 InvalidateRuntime 把正在
+		// 启动的 attach 干掉，回 500 "runtime start canceled"——但这只是 cancel 副作用，
+		// 不是用户语义上的失败。改为 fire-and-forget：立即 200，状态走 SSE 推流；失败/成功
+		// 都从概览（vowifi_active）可见；错误日志进 journal 方便事后排查。
+		go func(id string) {
+			if err := s.pool.EnableVoWiFi(id); err != nil {
+				logger.Warn("VoWiFi 后台启用失败", "device", id, "err", err)
+			}
+		}(deviceID)
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "ok",
+			"message": "VoWiFi 已提交启用，状态见概览",
+			"device":  deviceID,
+		})
 		return
 	}
 
